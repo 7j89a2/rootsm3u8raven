@@ -1,0 +1,82 @@
+from pyrogram import Client, filters
+import requests
+
+# إعدادات البوت
+api_id = 20944746
+api_hash = "d169162c1bcf092a6773e685c62c3894"
+bot_token = "8077469209:AAEGeu6O3m9c8DsJCczffg6BdYzLq2SzRXA"
+
+app = Client("vimeo_downloader_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
+
+def get_vimeo_download_link(video_id):
+    url = f"https://api.vimeo.com/videos/{video_id}"
+    headers = {
+        "Authorization": "bearer d2c3d0727005d7f902be913f588b1389"
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            print("❌ فشل في الوصول إلى Vimeo API")
+            return None
+
+        data = response.json()
+
+        # 🔍 نبحث في كل شيء داخل JSON
+        def search_for_link(obj):
+            if isinstance(obj, dict):
+                # إذا العنصر يحتوي على الرابط المطلوب
+                if (
+                    obj.get("quality") == "hls" and
+                    obj.get("rendition") == "adaptive" and
+                    obj.get("type") == "video/mp4" and
+                    f"{video_id}.m3u8" in obj.get("link", "")
+                ):
+                    return obj["link"]
+
+                # نتابع البحث داخل القاموس
+                for value in obj.values():
+                    result = search_for_link(value)
+                    if result:
+                        return result
+
+            elif isinstance(obj, list):
+                # نبحث في كل عنصر داخل القائمة
+                for item in obj:
+                    result = search_for_link(item)
+                    if result:
+                        return result
+
+            return None
+
+        return search_for_link(data)
+
+    except Exception as e:
+        print(f"Error fetching video {video_id}: {e}")
+        return None
+
+@app.on_message(filters.command("start"))
+async def start_handler(client, message):
+    await message.reply("👋 أرسل معرفات فيديوهات Vimeo (سطر لكل معرف)، وسأرسل لك روابط التحميل المباشرة بصيغة HLS.")
+
+@app.on_message(filters.text & ~filters.command("start"))
+async def handle_video_ids(client, message):
+    video_ids = message.text.strip().splitlines()
+    results = []
+
+    for video_id in video_ids:
+        video_id = video_id.strip()
+        if not video_id.isdigit():
+            continue
+
+        link = get_vimeo_download_link(video_id)
+        if link:
+            results.append(link)
+
+    if results:
+        reply_text = "✅ روابط التحميل المباشرة:\n\n" + "\n".join(results)
+        await message.reply(reply_text, disable_web_page_preview=True)
+    else:
+        await message.reply("😢 لم يتم العثور على روابط بصيغة m3u8 لهذا المعرف.")
+
+app.run()
