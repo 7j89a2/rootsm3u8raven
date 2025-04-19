@@ -55,6 +55,29 @@ def get_vimeo_download_link(video_id):
         print(f"Error fetching video {video_id}: {e}")
         return None
 
+async def send_long_message(client, chat_id, text):
+    max_length = 4096  # الحد الأقصى لطول الرسالة في Telegram
+    if len(text) <= max_length:
+        await client.send_message(chat_id, text, disable_web_page_preview=True)
+        return
+    
+    # تقسيم الرسالة إلى أجزاء
+    parts = []
+    while text:
+        if len(text) > max_length:
+            part = text[:max_length]
+            first_newline = part.rfind('\n')
+            if first_newline != -1:
+                part = text[:first_newline]
+        else:
+            part = text
+        parts.append(part)
+        text = text[len(part):].lstrip('\n')
+    
+    # إرسال الأجزاء واحدًا تلو الآخر
+    for part in parts:
+        await client.send_message(chat_id, part, disable_web_page_preview=True)
+
 @app.on_message(filters.command("start"))
 async def start_handler(client, message):
     await message.reply("👋 أرسل معرفات فيديوهات Vimeo (سطر لكل معرف)، وسأرسل لك روابط التحميل المباشرة بصيغة HLS.")
@@ -75,7 +98,7 @@ async def handle_video_ids(client, message):
 
     if results:
         reply_text = "✅ روابط التحميل المباشرة:\n\n" + "\n".join(results)
-        await message.reply(reply_text, disable_web_page_preview=True)
+        await send_long_message(client, message.chat.id, reply_text)
     else:
         await message.reply("😢 لم يتم العثور على روابط بصيغة m3u8 لهذا المعرف.")
 
