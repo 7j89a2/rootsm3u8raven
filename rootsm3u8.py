@@ -11,7 +11,7 @@ app = Client("vimeo_downloader_bot", api_id=api_id, api_hash=api_hash, bot_token
 def get_vimeo_download_link(video_id):
     url = f"https://api.vimeo.com/videos/{video_id}"
     headers = {
-        "Authorization": "bearer d2c3d0727005d7f902be913f588b1389"
+        "Authorization": "bearer cb4db7e6644148561e3ff38c665725ee"
     }
 
     try:
